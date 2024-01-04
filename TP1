@@ -1,0 +1,198 @@
+#Primera Parte
+
+El  archivo  extraído de la API de Spotify taylor_swift_spotify.json. crear un script en Python que lo procese y lo deje con el formato dataset.csv . Para esta primera parte de la prueba solo se uso Python y las librerías Pandas y JSON.
+
+*Entregable*: Archivo de Python con la solución del problema.
+
+from google.colab import drive
+import pandas as pd
+import json
+
+# Montar Google Drive
+drive.mount('/content/drive')
+
+# leer la ruta del archivo
+file_path = '/content/drive/MyDrive/Proyectos Personales/R5/taylor_swift_spotify.json'
+
+# Leer y procesar el archivo JSON
+with open(file_path, 'r') as file:
+    data = json.load(file)
+print(data)
+
+# leer el archivo
+file_path = '/content/drive/MyDrive/Proyectos Personales/R5/taylor_swift_spotify.json'
+
+with open(file_path, 'r') as file:
+    data = json.load(file)
+
+# Crear una lista vacía para almacenar todos los datos de las pistas mas adelante
+tracks_data = []
+
+# Iterar sobre los álbumes del json y para transformar los datos
+for album in data['albums']:
+    for track in album['tracks']:
+        # la idea es que cada pista tenga datos del álbum y los "audio_features" de manera detallada,
+        track_data = track.copy()
+        track_data['album_id'] = album['album_id']
+        track_data['album_name'] = album['album_name']
+        track_data['album_release_date'] = album['album_release_date']
+        track_data['album_total_tracks'] = album['album_total_tracks']
+
+        # Extraer cada característica de audio y añadirla al diccionario de la pista
+        for feature, value in track['audio_features'].items():
+            track_data[f'audio_feature_{feature}'] = value
+
+        del track_data['audio_features']
+
+        # Agregar los datos de la pista a la lista
+        tracks_data.append(track_data)
+
+tracks_df = pd.DataFrame(tracks_data)
+
+tracks_df
+
+# Guardar el DataFrame como un archivo CSV
+tracks_df.to_csv('/content/drive/My Drive/dataset.csv', index=False)
+
+#Segunda Parte
+
+Luego de procesar el archivo descargado de la API de Spotify del punto anterior, se procede a realizar un análisis de calidad de datos sobre el archivo dataset.csv
+
+
+# Cargar el archivo CSV
+file_path = '/content/drive/MyDrive/dataset.csv'
+df = pd.read_csv(file_path)
+
+# Análisis inicial de calidad de datos
+# 1. Revisar las primeras filas para revisar nuevamente y tner una idea general de la data,
+vista_incial = df.head()
+vista_incial
+
+# 2. Revisar la información general del DataFrame (tipos de datos, valores no nulos, etc.)
+data_info = df.info()
+data_info
+
+# 3. Estadísticas descriptivas básicas para identificar posibles valores atípicos o anomalías
+estadisticas = df.describe()
+estadisticas
+
+El método describe() se utiliza para calcular algunos datos estadísticos como percentil, media y desviación estándar de los valores numéricos del dataframe
+
+Analizando las estadísticas básicas proporcionadas, varias anomalías y puntos de interés negativos son visibles, particularmente con respecto a los valores negativos:
+
+**duration_ms:**
+
+El valor mínimo es -223,093 ms, lo cual es imposible ya que la duración de una canción no puede ser negativa. Esto indica claramente un error de entrada de datos o un defecto en la extracción de datos.
+
+**track_popularity:**
+
+Hay un valor mínimo de -92, que está fuera del rango esperado para la popularidad de una pista en Spotify (que debería estar entre 0 y 100). Esto sugiere un error en los datos o una posible mala interpretación de cómo se almacenó esta información.
+
+**audio_feature_acousticness:**
+
+Existe un valor máximo de 5, lo cual no tiene sentido ya que la acústica se mide en una escala de 0 a 1. Un valor de 5 implica un error en la entrada de datos o un problema con la forma en que se recopilaron o procesaron los datos.
+
+
+# 4. Revisar valores únicos para cada columna
+valores_unicos = df.nunique()
+valores_unicos
+
+Se utiliza el metodo "nunique", para identificar si hay diversidad en las columnas. con base en encontrar anomalías de calidad de datos.
+
+Las columnas track_id, track_name, album_name, indican una buena variedad de datos.
+
+La columna audio_feature_time_signature tiene 3 valores únicos, lo cual podría ser una señal para investigar si los valores son consistentes con las firmas de tiempo
+
+# 5. Revisar valores nulos para cada columna
+valores_nulos = df.isnull().sum()
+valores_nulos
+
+**track_id (8 valores nulos)**: La ausencia de un ID de pista puede dificultar o impedir la identificación única de las pistas. Esto es crítico si el ID se utiliza para unir tablas o realizar búsquedas en bases de datos.
+
+**track_name (7 valores nulos)**: Los nombres de las pistas son importantes para la presentación y búsqueda de datos. La falta de nombres puede afectar la experiencia del usuario y la usabilidad de los datos para propósitos de recomendación o análisis.
+
+**album_name (62 valores nulos)**: Una gran cantidad de valores nulos en esta columna puede afectar el análisis relacionado con álbumes específicos y puede indicar problemas con la consistencia de los datos de álbumes en la fuente de datos.
+
+# Analisis Complementario
+
+# Grafico de VIolin
+
+Distribución de la duración de las pistas por álbum, basado en el dataset. gráfico útil para visualizar la variabilidad de la duración de las pistas dentro de cada álbum y comparar entre diferentes álbumes.
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+df = pd.read_csv(file_path)
+
+# Filtrar los datos para eliminar valores negativos o anómalos en 'duration_ms'
+#df_filtered = df[df['duration_ms'] > 0]
+
+# Crear un gráfico de violín
+plt.figure(figsize=(25, 10))
+sns.violinplot(x='album_name', y='duration_ms', data=df)
+plt.xticks(rotation=45)
+plt.title('Distribución de la Duración de las Pistas por Álbum')
+plt.xlabel('Todos los nombres de los Álbumes')
+plt.ylabel('Duración (ms)')
+plt.show()
+
+
+
+
+df = pd.read_csv(file_path)
+
+# Crear un gráfico de violín
+plt.figure(figsize=(25, 10))
+sns.violinplot(x='album_name', y='track_popularity', data=df)
+plt.xticks(rotation=45)
+plt.title('Distribución de Popularidad por Álbum')
+plt.xlabel('Todos los nombres de los Álbumes')
+plt.ylabel('Pupularidad')
+plt.show()
+
+
+df = pd.read_csv(file_path)
+
+# Crear un gráfico de violín
+plt.figure(figsize=(25, 10))
+sns.violinplot(x='album_name', y='audio_feature_acousticness', data=df)
+plt.xticks(rotation=45)
+plt.title('Distribución de la Acustica por Álbum')
+plt.xlabel('Todos los nombres de los Álbumes')
+plt.ylabel('Pupularidad')
+plt.show()
+
+#Matriz de Correlación
+
+ Se realiza una matriz de correlación para las características de audio y la popularidad, con el fin de identificar si hay correlaciones fuertes entre estas, a pesar de tener anomalias en los datos
+
+
+# Seleccionar las columnas de interés para la correlación
+columns_of_interest = [
+    'audio_feature_danceability', 'audio_feature_energy',
+    'audio_feature_key', 'audio_feature_loudness',
+    'audio_feature_mode', 'audio_feature_speechiness',
+    'audio_feature_acousticness', 'audio_feature_instrumentalness',
+    'audio_feature_liveness', 'audio_feature_valence',
+    'audio_feature_tempo', 'track_popularity'
+]
+# Filtrar los datos para eliminar valores negativos o anómalos en 'audio_feature_acousticness'
+#df_filtered = df[df['audio_feature_acousticness'] > 0]
+
+# Crear un nuevo DataFrame solo con las columnas de interés
+correlation_df = df[columns_of_interest]
+
+# Calcular la matriz de correlación
+correlation_matrix = correlation_df.corr()
+
+# Generar un mapa de calor para visualizar la matriz de correlación
+plt.figure(figsize=(12, 10))
+sns.heatmap(correlation_matrix, annot=True, fmt=".2f", cmap='coolwarm')
+plt.title('Matriz de Correlación entre Características de Audio y Popularidad de la Pista')
+plt.show()
+
+correlation_matrix['track_popularity']  # Análisis de correlación con popularidad de la pista
+
+
+Dado que existen valores negativos dentro de la base de datos, realiznado un matriz de correlacion teniendo como premisa la columna **track_popularity** nos arroja que ninguna de las características de audio tiene una correlación fuerte con la popularidad de la pista. Las más significativas son negativas y están relacionadas con la caracteristica "liveness", lo que podría sugerir que las pistas que suenan menos como una actuación en vivo tienden a ser más populares. Sin embargo, todas las correlaciones son bastante débiles, lo que implica que no hay una relación lineal directa entre estas características y la popularidad de la pista.
+
